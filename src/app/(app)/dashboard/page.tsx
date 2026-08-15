@@ -65,13 +65,104 @@ export default async function DashboardPage() {
     })
     .filter((r): r is Row => r !== null)
 
+  const postedCompleted = postedRows.filter((r) => r.dot === 'completed')
+  const postedAccepted = postedRows.filter((r) => r.dot === 'completed' || r.dot === 'assigned')
+  const spent = sum(postedCompleted.map((r) => r.amount))
+  const avgAccepted = average(postedAccepted.map((r) => r.amount))
+
+  const assignedCompleted = assignedRows.filter((r) => r.dot === 'completed')
+  const earned = sum(assignedCompleted.map((r) => r.amount))
+  const inProgressCount = assignedRows.filter((r) => r.dot !== 'completed').length
+  const acceptedOffersCount = offeredRows.filter((r) => r.dot === 'accepted').length
+
   return (
     <div className="mx-auto max-w-3xl px-8 py-11">
       <h1 className="mb-10 text-[26px] font-medium tracking-tight text-stone-900">Your loop</h1>
 
+      <div className="mb-12 grid grid-cols-1 gap-7 sm:grid-cols-2">
+        <SummaryPanel
+          role="As a poster"
+          dotClassName="bg-accent"
+          textClassName="text-accent"
+          headline={formatMoney(spent)}
+          headlineLabel="spent"
+          headlineNote={`Across ${postedCompleted.length} completed task${postedCompleted.length === 1 ? '' : 's'}, all time.`}
+          stats={[
+            { value: String(postedRows.length), label: 'Tasks posted' },
+            { value: String(postedRows.filter((r) => r.dot === 'open').length), label: 'Open' },
+            { value: avgAccepted != null ? formatMoney(avgAccepted) : '—', label: 'Avg. accepted' },
+          ]}
+        />
+        <SummaryPanel
+          role="As a helper"
+          dotClassName="bg-emerald-700"
+          textClassName="text-emerald-700"
+          headline={formatMoney(earned)}
+          headlineLabel="earned"
+          headlineNote={`Paid out on ${assignedCompleted.length} completed task${assignedCompleted.length === 1 ? '' : 's'}.`}
+          stats={[
+            { value: String(offeredRows.length), label: 'Offers sent' },
+            { value: String(acceptedOffersCount), label: 'Accepted' },
+            { value: String(inProgressCount), label: 'In progress' },
+          ]}
+        />
+      </div>
+
       <Section title="Tasks you posted" count={postedRows.length} rows={postedRows} />
       <Section title="Assigned to you" count={assignedRows.length} rows={assignedRows} />
       <Section title="Your offers" count={offeredRows.length} rows={offeredRows} />
+    </div>
+  )
+}
+
+function sum(values: (number | null)[]) {
+  return values.reduce<number>((total, v) => total + (v ?? 0), 0)
+}
+
+function average(values: (number | null)[]) {
+  const nums = values.filter((v): v is number => v != null)
+  if (nums.length === 0) return null
+  return sum(nums) / nums.length
+}
+
+function SummaryPanel({
+  role,
+  dotClassName,
+  textClassName,
+  headline,
+  headlineLabel,
+  headlineNote,
+  stats,
+}: {
+  role: string
+  dotClassName: string
+  textClassName: string
+  headline: string
+  headlineLabel: string
+  headlineNote: string
+  stats: { value: string; label: string }[]
+}) {
+  return (
+    <div className="rounded-[9px] border border-black/[0.09] px-6.5 py-6">
+      <div className="mb-5.5 flex items-center gap-2">
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClassName}`} />
+        <span className={`font-mono text-[11px] font-medium tracking-wider uppercase ${textClassName}`}>
+          {role}
+        </span>
+      </div>
+      <div className="mb-1 flex items-baseline gap-2.5">
+        <span className="text-[38px] leading-none font-medium tracking-tight text-stone-900">{headline}</span>
+        <span className="text-[13px] text-ink-faint">{headlineLabel}</span>
+      </div>
+      <div className="mb-5.5 text-[12.5px] leading-tight text-stone-400">{headlineNote}</div>
+      <div className="flex gap-8 border-t border-black/[0.07] pt-4.5">
+        {stats.map((s) => (
+          <div key={s.label}>
+            <div className="mb-1.5 text-[19px] leading-none font-medium text-stone-900">{s.value}</div>
+            <div className="text-[11.5px] leading-tight text-ink-faint">{s.label}</div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
